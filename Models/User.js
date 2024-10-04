@@ -23,6 +23,10 @@ const User = sequelize.define('User',{
     usertype:{
         type:DataTypes.ENUM('admin','guest','user'),
         defaultValue:'guest',
+    },
+    token:{
+        type:DataTypes.STRING,
+        allowNull:true,
     }
     
     },{
