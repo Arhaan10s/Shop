@@ -1,5 +1,6 @@
 const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
+const { response } = require('express');
 const jwt = require('jsonwebtoken');
 
 
@@ -86,7 +87,6 @@ exports.signIn = async (req, res) => {
 };
 
 
-
 exports.getUser = async (req,res)=>{
     const{ userId } = req.body;
     
@@ -162,5 +162,94 @@ exports.permissions =  async (req,res)=>{
     }
     catch (error) {
         res.status(500).json({message: err.message})
+    }
+}
+
+exports.forget_password = async (req, res)=>{
+    const { email, otp:inputOtp, password:inputPassword } = req.body;
+
+    try{
+        const user = await User.findOne({
+            where:{email}
+        })
+
+        if(!user){
+            return res.status(404).json({message: 'User not found'})
+        }
+        
+        if(inputOtp && !inputPassword){
+
+            if(user.otp === null)
+            {
+                return res.status(404).json({message: 'Verify the email first before Otp generation'})
+            }
+
+            if(user.otp !== (+inputOtp)){
+                const attempts = user.otp_attempts || 0 ;
+
+                if(user.otp_attempts > 2)
+                {
+                     await User.update({otp: null, otp_attempts: 0},{
+                        where:{email}
+                    })
+                    return res.status(401).json({message: 'Maximum attempts reached try again by verifying the email address'})
+                }
+
+                await User.update({otp_attempts : attempts + 1},{
+                    where:{email}
+                })
+                return res.status(400).json({
+                    message: 'Invalid OTP',
+                    attempts: attempts + 1
+                });
+            }
+
+            await User.update({otp_attempts : 0},{
+                where:{email}
+            })
+            return res.status(200).json({
+                message: ' Otp verified and please input New password',
+            })
+        }
+        if(inputPassword && inputOtp){
+            if (user.otp !== +inputOtp) {
+                return res.status(400).json({ message: 'OTP verification required before changing password' });
+            }
+
+            const hashedPassword = await bcrypt.hash(inputPassword, 10);
+
+
+            if(hashedPassword === user.password){
+                return res.status(200).json({message:'Password can not be the same'})
+            }
+            else{
+                await User.update({
+                    password:hashedPassword,
+                    otp:null,
+                    otp_attempts:0,
+                },{where: {email}})
+                
+                return res.status(200).json({message:"Password changed successfully!"})
+
+            }
+        }
+        if(!inputOtp && !inputPassword) 
+        {   
+            const otp = Math.floor(100000 + Math.random() * 900000);
+            
+            await User.update({otp,otp_attempts:0},{
+                where:{email}
+            }) 
+            
+            res.status(200).json({
+                otp,
+                message:'OTP sent successfully',
+            })
+            
+        }
+
+    }
+    catch(err){
+        return res.status(500).json({message:err.message})
     }
 }

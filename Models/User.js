@@ -27,6 +27,18 @@ const User = sequelize.define('User',{
     token:{
         type:DataTypes.STRING,
         allowNull:true,
+    },
+    otp:{
+        type:DataTypes.INTEGER,
+        allowNull:true,
+    },
+    otp_expires:{
+        type:DataTypes.DATE,
+        allowNull:true,
+    },
+    otp_attempts:{
+        type:DataTypes.INTEGER,
+        allowNull:true,
     }
     
     },{
