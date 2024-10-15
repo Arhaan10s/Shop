@@ -39,6 +39,10 @@ const User = sequelize.define('User',{
     otp_attempts:{
         type:DataTypes.INTEGER,
         allowNull:true,
+    },
+    disable:{
+        type:DataTypes.DATE,
+        allowNull:true
     }
     
     },{

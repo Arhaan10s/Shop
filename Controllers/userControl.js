@@ -2,6 +2,7 @@ const User = require('../Models/User');
 const bcrypt = require('bcryptjs');
 const { response } = require('express');
 const jwt = require('jsonwebtoken');
+const { DATE } = require('sequelize');
 
 
 exports.register = async(req,res)=>{
@@ -173,10 +174,34 @@ exports.forget_password = async (req, res)=>{
             where:{email}
         })
 
+        console.log(user.disable.getTime());
+        console.log(new Date().getTime());
+        
+
+        
+        
+
         if(!user){
             return res.status(404).json({message: 'User not found'})
         }
+
+        const curr=new Date().getTime()
+
+        if(user.disable.getTime() > curr){
+            return res.status(404).json({message: "User disabled" })
+        }
+    
+        const currentTime = new Date();
         
+        if (user.otp_expires && new Date(user.otp_expires) > currentTime && user.otp === null) 
+            {
+            return res.status(403).json(
+                {
+                 message: 'Too many attempts. Please try again in 1 minute.' 
+                }
+            );
+        }
+
         if(inputOtp && !inputPassword){
 
             if(user.otp === null)
@@ -184,12 +209,20 @@ exports.forget_password = async (req, res)=>{
                 return res.status(404).json({message: 'Verify the email first before Otp generation'})
             }
 
+            if (user.otp_expires && new Date(user.otp_expires) < currentTime) 
+                {
+                await User.update({ otp: null, otp_expires: null }, {
+                    where: { email }
+                });
+                return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+            }
+
             if(user.otp !== (+inputOtp)){
                 const attempts = user.otp_attempts || 0 ;
 
                 if(user.otp_attempts > 2)
                 {
-                     await User.update({otp: null, otp_attempts: 0},{
+                     await User.update({otp: null, otp_attempts: 0, otp_expires:null, disable: new Date(currentTime.getTime() + 2 * 60000)},{
                         where:{email}
                     })
                     return res.status(401).json({message: 'Maximum attempts reached try again by verifying the email address'})
@@ -204,7 +237,7 @@ exports.forget_password = async (req, res)=>{
                 });
             }
 
-            await User.update({otp_attempts : 0},{
+            await User.update({otp_attempts : 0, otp_expires:null},{
                 where:{email}
             })
             return res.status(200).json({
@@ -227,6 +260,7 @@ exports.forget_password = async (req, res)=>{
                     password:hashedPassword,
                     otp:null,
                     otp_attempts:0,
+                    otp_expires:null
                 },{where: {email}})
                 
                 return res.status(200).json({message:"Password changed successfully!"})
@@ -236,8 +270,13 @@ exports.forget_password = async (req, res)=>{
         if(!inputOtp && !inputPassword) 
         {   
             const otp = Math.floor(100000 + Math.random() * 900000);
-            
-            await User.update({otp,otp_attempts:0},{
+            const otpExpires = new Date(currentTime.getTime() + 1 * 60000); // 1 min
+
+            await User.update({
+                otp,
+                otp_attempts:0,
+                otp_expires:otpExpires
+            },{
                 where:{email}
             }) 
             
@@ -247,6 +286,7 @@ exports.forget_password = async (req, res)=>{
             })
             
         }
+   
 
     }
     catch(err){
