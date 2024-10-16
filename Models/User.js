@@ -43,6 +43,10 @@ const User = sequelize.define('User',{
     disable:{
         type:DataTypes.DATE,
         allowNull:true
+    },
+    pin:{
+        type:DataTypes.INTEGER,
+        allowNull:true
     }
     
     },{

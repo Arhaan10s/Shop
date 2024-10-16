@@ -236,10 +236,23 @@ exports.forget_password = async (req, res)=>{
                     attempts: attempts + 1
                 });
             }
+            if(user.pin === null )
+            {
+                const newPin = Math.floor(100000 + Math.random() * 900000);
+                await User.update({
+                    pin:newPin,
+                },{
+                    where:{email}
+                })
+            }
 
-            await User.update({otp_attempts : 0, otp_expires:null},{
-                where:{email}
-            })
+            await User.update({
+                    otp_attempts : 0,
+                    otp_expires:null,
+                },{
+                    where:{email}
+                }
+            )
             return res.status(200).json({
                 message: ' Otp verified and please input New password',
             })
@@ -260,7 +273,8 @@ exports.forget_password = async (req, res)=>{
                     password:hashedPassword,
                     otp:null,
                     otp_attempts:0,
-                    otp_expires:null
+                    otp_expires:null,
+                    disable:null
                 },{where: {email}})
                 
                 return res.status(200).json({message:"Password changed successfully!"})
